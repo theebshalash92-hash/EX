@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - إدارة المخازن والمواقع</title>
+    <title>لوحة التحكم - إدارة المواد والمواقع</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- مكتبات الـ PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-50 font-sans">
 
     <div class="container mx-auto p-6 max-w-6xl">
-        <!-- الشريط العلوي ومعلومات المستخدم -->
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex justify-between items-center">
             <div>
                 حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
@@ -21,31 +19,25 @@
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600">تسجيل الخروج</button>
         </header>
 
-        <!-- نموذج إضافة مادة مع تحديد مكان التخزين -->
+        <!-- إضافة مادة مع مكان التخزين -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
             <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة وتحديد مكانها</h2>
             <form id="itemForm" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <input type="text" id="itemName" placeholder="اسم المادة" required class="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                
-                <input type="text" id="itemLocation" placeholder="مكان التخزين (مثل: الثلاجة 2، الرف أ)" required class="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                
-                <input type="number" id="itemQuantity" placeholder="الكمية في هذا المكان" min="1" required class="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                
-                <input type="date" id="itemExpiryDate" required class="border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                
-                <button type="submit" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold">حفظ المادة</button>
+                <input type="text" id="itemName" placeholder="اسم المادة" required class="border p-2 rounded">
+                <input type="text" id="itemLocation" placeholder="مكان التخزين (مثال: الثلاجة 1)" required class="border p-2 rounded">
+                <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2 rounded">
+                <input type="date" id="itemExpiryDate" required class="border p-2 rounded">
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-bold">حفظ المادة</button>
             </form>
         </div>
 
-        <!-- أزرار التصفية والتصدير لـ PDF -->
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold text-gray-700">مخزون القسم ومواقع التخزين</h2>
-            <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition flex items-center gap-1 font-bold text-sm">
+            <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold text-sm">
                 📄 تصدير كشف القسم (PDF)
             </button>
         </div>
 
-        <!-- جدول عرض المواد والمواقع -->
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <table class="w-full text-right border-collapse">
                 <thead class="bg-gray-100 text-gray-600 uppercase text-sm">
@@ -58,13 +50,115 @@
                         <th class="p-3">الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="itemTableBody" class="divide-y divide-gray-200">
-                    <!-- البيانات تعبأ برمجياً -->
-                </tbody>
+                <tbody id="itemTableBody" class="divide-y divide-gray-200"></tbody>
             </table>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const currentUser = sessionStorage.getItem('currentUser');
+        const currentDept = sessionStorage.getItem('currentDept');
+
+        if (!currentUser || !currentDept) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('displayUser').innerText = currentUser;
+        document.getElementById('displayDept').innerText = currentDept;
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
+        const form = document.getElementById('itemForm');
+        const tableBody = document.getElementById('itemTableBody');
+
+        function checkExpiryStatus(expiryDateStr) {
+            const today = new Date();
+            const expiryDate = new Date(expiryDateStr);
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">منتهية الصلاحية</span>`;
+            } else if (diffDays <= 30) {
+                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">قريب الانتهاء (${diffDays} يوم)</span>`;
+            } else {
+                return `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">سارية المفعول</span>`;
+            }
+        }
+
+        function renderInventory() {
+            tableBody.innerHTML = '';
+            const deptInventory = inventory.filter(item => item.department === currentDept);
+
+            if (deptInventory.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا توجد مواد مسجلة في هذا القسم حالياً</td></tr>`;
+                return;
+            }
+
+            deptInventory.forEach((item, index) => {
+                const statusBadge = checkExpiryStatus(item.expiryDate);
+                const globalIndex = inventory.findIndex(inv => inv === item);
+                
+                tableBody.innerHTML += `
+                    <tr>
+                        <td class="p-3 text-gray-800 font-medium">${item.name}</td>
+                        <td class="p-3 text-blue-700 font-semibold"><span class="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-xs">${item.location}</span></td>
+                        <td class="p-3 text-gray-700 font-bold">${item.quantity}</td>
+                        <td class="p-3 text-gray-600">${item.expiryDate}</td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3"><button onclick="deleteItem(${globalIndex})" class="text-red-600 hover:text-red-800 text-sm">حذف</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('itemName').value;
+            const location = document.getElementById('itemLocation').value;
+            const quantity = parseInt(document.getElementById('itemQuantity').value);
+            const expiryDate = document.getElementById('itemExpiryDate').value;
+
+            inventory.push({ name, location, department: currentDept, quantity, expiryDate });
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            form.reset();
+            renderInventory();
+        });
+
+        function deleteItem(index) {
+            inventory.splice(index, 1);
+            localStorage.setItem('inventory', JSON.stringify(inventory));
+            renderInventory();
+        }
+
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text(`Inventory Report - ${currentDept}`, 14, 20);
+            doc.setFontSize(12);
+            doc.text(`Generated by: ${currentUser} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+
+            const deptInventory = inventory.filter(item => item.department === currentDept);
+            const tableData = deptInventory.map((item, i) => [i + 1, item.name, item.location, item.quantity, item.expiryDate]);
+
+            doc.autoTable({
+                startY: 35,
+                head: [['#', 'Item Name', 'Location', 'Quantity', 'Expiry Date']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 128, 185] }
+            });
+
+            doc.save(`${currentDept}-Inventory-Report.pdf`);
+        }
+
+        renderInventory();
+    </script>
 </body>
 </html>
