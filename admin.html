@@ -1,1 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المدير - الإدارة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
 
+    <div class="container mx-auto p-6 max-w-5xl">
+        <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-800">لوحة تحكم المشرف (Admin Control)</h1>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600">تسجيل الخروج</button>
+        </header>
+
+        <!-- إدارة الأقسام -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">إضافة قسم جديد</h2>
+            <form id="deptForm" class="flex gap-4">
+                <input type="text" id="newDeptName" placeholder="اسم القسم الجديد" required class="border p-2 rounded flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">إضافة القسم</button>
+            </form>
+            <div class="mt-4">
+                <h3 class="text-sm font-bold text-gray-600 mb-2">الأقسام الحالية:</h3>
+                <div id="deptList" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <!-- إدارة المستخدمين وكلمات المرور -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">إضافة مستخدم / موظف جديد</h2>
+            <form id="userForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="text" id="newUsername" placeholder="اسم المستخدم" required class="border p-2 rounded">
+                <input type="password" id="newPassword" placeholder="كلمة المرور" required class="border p-2 rounded">
+                <select id="userDeptSelect" required class="border p-2 rounded bg-white">
+                    <option value="">اختر القسم المسؤول عنه</option>
+                </select>
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">حفظ المستخدم</button>
+            </form>
+        </div>
+
+        <!-- جدول المستخدمين الحاليين -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-4">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">المستخدمون المسجلون بالنظام</h2>
+            <table class="w-full text-right border-collapse">
+                <thead class="bg-gray-100 text-gray-600 text-sm">
+                    <tr>
+                        <th class="p-3">اسم المستخدم</th>
+                        <th class="p-3">كلمة المرور</th>
+                        <th class="p-3">القسم</th>
+                        <th class="p-3">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody" class="divide-y divide-gray-200 text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        if (sessionStorage.getItem('userRole') !== 'admin') {
+            window.location.href = 'index.html';
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        let departments = JSON.parse(localStorage.getItem('departments')) || ['المواد الجافة', 'المبردة والمجمدة', 'المنظفات والعناية', 'المستودع العام'];
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+
+        function renderAdminData() {
+            // عرض الأقسام
+            const deptListDiv = document.getElementById('deptList');
+            const userDeptSelect = document.getElementById('userDeptSelect');
+            deptListDiv.innerHTML = '';
+            userDeptSelect.innerHTML = '<option value="">اختر القسم المسؤول عنه</option>';
+
+            departments.forEach((dept, index) => {
+                deptListDiv.innerHTML += `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded text-sm">${dept}</span>`;
+                userDeptSelect.innerHTML += `<option value="${dept}">${dept}</option>`;
+            });
+
+            // عرض المستخدمين
+            const usersTableBody = document.getElementById('usersTableBody');
+            usersTableBody.innerHTML = '';
+            users.forEach((usr, index) => {
+                if (usr.role === 'admin') return; // عدم عرض حساب الآدمن الأساسي للحماية
+                usersTableBody.innerHTML += `
+                    <tr>
+                        <td class="p-3">${usr.username}</td>
+                        <td class="p-3 font-mono">••••</td>
+                        <td class="p-3">${usr.dept}</td>
+                        <td class="p-3"><button onclick="deleteUser(${index})" class="text-red-600 hover:text-red-800">حذف</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // إضافة قسم جديد
+        document.getElementById('deptForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('newDeptName').value.trim();
+            if (departments.includes(name)) {
+                alert('هذا القسم موجود مسبقاً!');
+                return;
+            }
+            departments.push(name);
+            localStorage.setItem('departments', JSON.stringify(departments));
+            document.getElementById('newDeptName').value = '';
+            renderAdminData();
+        });
+
+        // إضافة مستخدم جديد
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value.trim();
+            const pass = document.getElementById('newPassword').value;
+            const dept = document.getElementById('userDeptSelect').value;
+
+            users.push({ username, pass, dept, role: 'employee' });
+            localStorage.setItem('users', JSON.stringify(users));
+            document.getElementById('userForm').reset();
+            renderAdminData();
+        });
+
+        function deleteUser(index) {
+            users.splice(index, 1);
+            localStorage.setItem('users', JSON.stringify(users));
+            renderAdminData();
+        }
+
+        renderAdminData();
+    </script>
+</body>
+</html>
