@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - إدارة المواد السحابية</title>
+    <title>لوحة التحكم - إدارة المواد السحابية والمواقع</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -46,11 +46,11 @@
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             if (diffDays < 0) {
-                return `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">منتهية الصلاحية</span>`;
+                return `<span class="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded font-bold">منتهية الصلاحية (مضى ${Math.abs(diffDays)} يوم)</span>`;
             } else if (diffDays <= 30) {
-                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">قريب الانتهاء (${diffDays} يوم)</span>`;
+                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2.5 py-1 rounded font-bold">قريب الانتهاء (متبقي ${diffDays} يوم)</span>`;
             } else {
-                return `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">سارية المفعول</span>`;
+                return `<span class="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded font-bold">سارية المفعول (متبقي ${diffDays} يوم)</span>`;
             }
         }
 
@@ -58,44 +58,49 @@
 
         async function renderInventory() {
             const tableBody = document.getElementById('itemTableBody');
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500">جاري تحميل البيانات من السحابة...</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500 font-bold">جاري تحميل البيانات من السحابة...</td></tr>';
             
-            const querySnapshot = await getDocs(collection(db, "inventory"));
-            globalInventory = [];
-            
-            querySnapshot.forEach((docSnap) => {
-                globalInventory.push({ id: docSnap.id, ...docSnap.data() });
-            });
+            try {
+                const querySnapshot = await getDocs(collection(db, "inventory"));
+                globalInventory = [];
+                
+                querySnapshot.forEach((docSnap) => {
+                    globalInventory.push({ id: docSnap.id, ...docSnap.data() });
+                });
 
-            tableBody.innerHTML = '';
-            const deptInventory = globalInventory.filter(item => item.department === currentDept);
+                tableBody.innerHTML = '';
+                const deptInventory = globalInventory.filter(item => item.department === currentDept);
 
-            if (deptInventory.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا توجد مواد مسجلة في هذا القسم حالياً</td></tr>`;
-                return;
+                if (deptInventory.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-500">لا توجد مواد مسجلة في هذا القسم حالياً</td></tr>`;
+                    return;
+                }
+
+                deptInventory.forEach((item) => {
+                    const statusBadge = checkExpiryStatus(item.expiryDate);
+                    tableBody.innerHTML += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3">
+                                <img src="${item.image}" alt="صورة المادة" class="w-12 h-12 object-cover rounded-md border shadow-sm">
+                            </td>
+                            <td class="p-3 text-blue-700 font-semibold"><span class="bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs">${item.location}</span></td>
+                            <td class="p-3 text-gray-700 font-bold">${item.quantity}</td>
+                            <td class="p-3 text-gray-600 font-mono">${item.expiryDate}</td>
+                            <td class="p-3">${statusBadge}</td>
+                            <td class="p-3"><button onclick="deleteItem('${item.id}')" class="text-red-600 hover:text-red-800 font-bold text-sm">حذف</button></td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error("خطأ في جلب البيانات:", error);
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-500">خطأ في الاتصال بقاعدة البيانات</td></tr>`;
             }
-
-            deptInventory.forEach((item) => {
-                const statusBadge = checkExpiryStatus(item.expiryDate);
-                tableBody.innerHTML += `
-                    <tr>
-                        <td class="p-3">
-                            <img src="${item.image}" alt="صورة" class="w-12 h-12 object-cover rounded-md border shadow-sm">
-                        </td>
-                        <td class="p-3 text-blue-700 font-semibold"><span class="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-xs">${item.location}</span></td>
-                        <td class="p-3 text-gray-700 font-bold">${item.quantity}</td>
-                        <td class="p-3 text-gray-600">${item.expiryDate}</td>
-                        <td class="p-3">${statusBadge}</td>
-                        <td class="p-3"><button onclick="deleteItem('${item.id}')" class="text-red-600 hover:text-red-800 text-sm">حذف</button></td>
-                    </tr>
-                `;
-            });
         }
 
         window.addItem = function(e) {
             e.preventDefault();
             const imageFile = document.getElementById('itemImageFile').files[0];
-            const location = document.getElementById('itemLocation').value;
+            const location = document.getElementById('itemLocation').value.trim();
             const quantity = parseInt(document.getElementById('itemQuantity').value);
             const expiryDate = document.getElementById('itemExpiryDate').value;
 
@@ -103,6 +108,12 @@
                 const reader = new FileReader();
                 reader.onload = async function(event) {
                     const base64Image = event.target.result;
+                    
+                    // زر مؤقت يوضح جاري الحفظ
+                    const submitBtn = e.target.querySelector('button[type="submit"]');
+                    submitBtn.innerText = "جاري الحفظ بالسحابة...";
+                    submitBtn.disabled = true;
+
                     await addDoc(collection(db, "inventory"), {
                         image: base64Image,
                         location,
@@ -110,7 +121,10 @@
                         quantity,
                         expiryDate
                     });
+
                     document.getElementById('itemForm').reset();
+                    submitBtn.innerText = "حفظ للسحابة";
+                    submitBtn.disabled = false;
                     renderInventory();
                 };
                 reader.readAsDataURL(imageFile);
@@ -118,7 +132,7 @@
         }
 
         window.deleteItem = async function(id) {
-            if (confirm('هل تريد حذف هذه المادة؟')) {
+            if (confirm('هل أنت متأكد من حذف هذه المادة؟')) {
                 await deleteDoc(doc(db, "inventory", id));
                 renderInventory();
             }
@@ -164,37 +178,38 @@
                 حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
                 القسم: <span id="displayDept" class="font-bold text-gray-700"></span>
             </div>
-            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600">تسجيل الخروج</button>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 font-bold">تسجيل الخروج</button>
         </header>
 
+        <!-- نموذج الإضافة (كاميرا ومواقع) -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة (سحابي متزامن)</h2>
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة (كاميرا أو ملف من الجهاز)</h2>
             <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">صورة المادة (كاميرا أو ملف):</label>
+                    <label class="block text-xs text-gray-600 mb-1 font-bold">صورة المادة:</label>
                     <input type="file" id="itemImageFile" accept="image/*" capture="environment" required class="border p-1.5 rounded w-full text-xs bg-gray-50">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">مكان التخزين:</label>
-                    <input type="text" id="itemLocation" placeholder="مثال: الثلاجة 1" required class="border p-2 rounded w-full text-sm">
+                    <label class="block text-xs text-gray-600 mb-1 font-bold">مكان التخزين:</label>
+                    <input type="text" id="itemLocation" placeholder="مثال: الثلاجة 1" required class="border p-2.5 rounded w-full text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">الكمية:</label>
-                    <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2 rounded w-full text-sm">
+                    <label class="block text-xs text-gray-600 mb-1 font-bold">الكمية:</label>
+                    <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2.5 rounded w-full text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">تاريخ الانتهاء:</label>
-                    <input type="date" id="itemExpiryDate" required class="border p-2 rounded w-full text-sm">
+                    <label class="block text-xs text-gray-600 mb-1 font-bold">تاريخ الانتهاء:</label>
+                    <input type="date" id="itemExpiryDate" required class="border p-2.5 rounded w-full text-sm">
                 </div>
-                <div class="flex items-end">
-                    <button type="submit" class="w-full bg-blue-600 text-white p-2.5 rounded hover:bg-blue-700 font-bold text-sm">حفظ للسحابة</button>
+                <div class="flex items-end pt-5 md:pt-0">
+                    <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 font-bold text-sm shadow-md">حفظ للسحابة</button>
                 </div>
             </form>
         </div>
 
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold text-gray-700">مخزون القسم السحابي</h2>
-            <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold text-sm">
+            <h2 class="text-xl font-semibold text-gray-700">مخزون القسم والتنبيهات الحية</h2>
+            <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold text-sm shadow-md">
                 📄 تصدير كشف القسم (PDF)
             </button>
         </div>
@@ -207,7 +222,7 @@
                         <th class="p-3">مكان التخزين</th>
                         <th class="p-3">الكمية</th>
                         <th class="p-3">تاريخ الانتهاء</th>
-                        <th class="p-3">الحالة</th>
+                        <th class="p-3">حالة الصلاحية والأيام</th>
                         <th class="p-3">الإجراءات</th>
                     </tr>
                 </thead>
