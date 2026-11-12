@@ -3,15 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - نظام إدارة المخازن</title>
+    <title>تسجيل الدخول - النظام السحابي</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwt1K6LBGJmyTjx_219kc9xmZYldJ8rEo",
+            authDomain: "ex-date-1db53.firebaseapp.com",
+            projectId: "ex-date-1db53",
+            storageBucket: "ex-date-1db53.firebasestorage.app",
+            messagingSenderId: "367695041348",
+            appId: "1:367695041348:web:d9d4695dd70606fb9dbd11",
+            measurementId: "G-9CHBWJ6VGG"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.handleLogin = async function(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+
+            try {
+                // التحقق من حساب الأدمن الافتراضي
+                if (u === 'admin' && p === '1234') {
+                    sessionStorage.setItem('currentUser', 'admin');
+                    sessionStorage.setItem('currentDept', 'الإدارة');
+                    sessionStorage.setItem('userRole', 'admin');
+                    window.location.href = 'admin.html';
+                    return;
+                }
+
+                // البحث عن المستخدم في سحابة Firebase
+                const querySnapshot = await getDocs(collection(db, "users"));
+                let foundUser = null;
+                
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.username === u && data.pass === p) {
+                        foundUser = data;
+                    }
+                });
+
+                if (!foundUser) {
+                    alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
+                    return;
+                }
+
+                sessionStorage.setItem('currentUser', foundUser.username);
+                sessionStorage.setItem('currentDept', foundUser.dept);
+                sessionStorage.setItem('userRole', foundUser.role || 'employee');
+
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error("خطأ في تسجيل الدخول: ", error);
+                alert("حدث خطأ في الاتصال بقاعدة البيانات السحابية.");
+            }
+        };
+    </script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
 
     <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">تسجيل دخول النظام</h2>
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">تسجيل الدخول (سحابي متزامن)</h2>
         
-        <form id="loginForm" class="space-y-4">
+        <form onsubmit="handleLogin(event)" class="space-y-4">
             <div>
                 <label class="block text-gray-700 text-sm mb-2">اسم المستخدم</label>
                 <input type="text" id="username" required placeholder="أدخل اسم المستخدم" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -22,42 +81,9 @@
                 <input type="password" id="password" required placeholder="أدخل كلمة المرور" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
-            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold">دخول</button>
+            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold">دخول للنظام</button>
         </form>
     </div>
 
-    <script>
-        // تهيئة حساب الأدمن الافتراضي والأقسام أول مرة
-        let users = JSON.parse(localStorage.getItem('users')) || [
-            { username: 'admin', pass: '1234', dept: 'الإدارة', role: 'admin' }
-        ];
-        localStorage.setItem('users', JSON.stringify(users));
-
-        let departments = JSON.parse(localStorage.getItem('departments')) || ['المواد الجافة', 'المبردة والمجمدة', 'المنظفات والعناية', 'المستودع العام'];
-        localStorage.setItem('departments', JSON.stringify(departments));
-
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-
-            const foundUser = users.find(user => user.username === u && user.pass === p);
-
-            if (!foundUser) {
-                alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
-                return;
-            }
-
-            sessionStorage.setItem('currentUser', foundUser.username);
-            sessionStorage.setItem('currentDept', foundUser.dept);
-            sessionStorage.setItem('userRole', foundUser.role);
-
-            if (foundUser.role === 'admin') {
-                window.location.href = 'admin.html';
-            } else {
-                window.location.href = 'dashboard.html';
-            }
-        });
-    </script>
 </body>
 </html>
