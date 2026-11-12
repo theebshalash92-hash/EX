@@ -32,91 +32,114 @@
         }
 
         async function loadAdminData() {
-            // تحميل الأقسام السحابية
-            const deptSnapshot = await getDocs(collection(db, "departments"));
-            const deptListDiv = document.getElementById('deptList');
-            const userDeptSelect = document.getElementById('userDeptSelect');
-            deptListDiv.innerHTML = '';
-            userDeptSelect.innerHTML = '<option value="">اختر القسم المسؤول عنه</option>';
+            try {
+                const deptSnapshot = await getDocs(collection(db, "departments"));
+                const deptListDiv = document.getElementById('deptList');
+                const userDeptSelect = document.getElementById('userDeptSelect');
+                deptListDiv.innerHTML = '';
+                userDeptSelect.innerHTML = '<option value="">اختر القسم المسؤول عنه</option>';
 
-            deptSnapshot.forEach((docSnap) => {
-                const deptData = docSnap.data();
-                const docId = docSnap.id;
+                deptSnapshot.forEach((docSnap) => {
+                    const deptData = docSnap.data();
+                    const docId = docSnap.id;
 
-                deptListDiv.innerHTML += `
-                    <div class="flex items-center justify-between bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1.5 rounded text-sm shadow-sm">
-                        <span class="font-bold">${deptData.name}</span>
-                        <button onclick="deleteDepartment('${docId}')" class="text-red-500 hover:text-red-700 mr-3 font-bold text-base">×</button>
-                    </div>
-                `;
-                userDeptSelect.innerHTML += `<option value="${deptData.name}">${deptData.name}</option>`;
-            });
+                    deptListDiv.innerHTML += `
+                        <div class="flex items-center justify-between bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1.5 rounded text-sm shadow-sm">
+                            <span class="font-bold">${deptData.name}</span>
+                            <button onclick="deleteDepartment('${docId}')" class="text-red-500 hover:text-red-700 mr-3 font-bold text-base">×</button>
+                        </div>
+                    `;
+                    userDeptSelect.innerHTML += `<option value="${deptData.name}">${deptData.name}</option>`;
+                });
 
-            // تحميل المستخدمين السحابيين
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            const usersTableBody = document.getElementById('usersTableBody');
-            usersTableBody.innerHTML = '';
-            
-            usersSnapshot.forEach((docSnap) => {
-                const usr = docSnap.data();
-                const docId = docSnap.id;
-                if (usr.role === 'admin') return;
+                const usersSnapshot = await getDocs(collection(db, "users"));
+                const usersTableBody = document.getElementById('usersTableBody');
+                usersTableBody.innerHTML = '';
+                
+                usersSnapshot.forEach((docSnap) => {
+                    const usr = docSnap.data();
+                    const docId = docSnap.id;
+                    if (usr.role === 'admin') return;
 
-                usersTableBody.innerHTML += `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-medium text-gray-800">${usr.username}</td>
-                        <td class="p-3 font-mono text-gray-500">••••</td>
-                        <td class="p-3 text-blue-600 font-semibold">${usr.dept}</td>
-                        <td class="p-3"><button onclick="deleteUser('${docId}')" class="text-red-600 hover:text-red-800 font-bold text-sm">حذف</button></td>
-                    </tr>
-                `;
-            });
+                    usersTableBody.innerHTML += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 font-medium text-gray-800">${usr.username}</td>
+                            <td class="p-3 font-mono text-gray-500">••••</td>
+                            <td class="p-3 text-blue-600 font-semibold">${usr.dept}</td>
+                            <td class="p-3"><button onclick="deleteUser('${docId}')" class="text-red-600 hover:text-red-800 font-bold text-sm">حذف</button></td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("خطأ في تحميل البيانات:", err);
+            }
         }
 
         window.addDepartment = async function(e) {
             e.preventDefault();
-            const name = document.getElementById('newDeptName').value.trim();
+            const nameInput = document.getElementById('newDeptName');
+            const name = nameInput.value.trim();
             if (!name) return;
 
             const btn = e.target.querySelector('button');
             btn.innerText = "جاري الحفظ...";
             btn.disabled = true;
 
-            await addDoc(collection(db, "departments"), { name });
-            document.getElementById('newDeptName').value = '';
-            btn.innerText = "حفظ القسم";
-            btn.disabled = false;
-            loadAdminData();
+            try {
+                await addDoc(collection(db, "departments"), { name });
+                nameInput.value = '';
+                await loadAdminData();
+            } catch (error) {
+                console.error("خطأ أثناء حفظ القسم:", error);
+                alert("فشل الحفظ! تأكد من قواعد الأمان في فايربيس (Firestore Rules).");
+            } finally {
+                btn.innerText = "حفظ القسم";
+                btn.disabled = false;
+            }
         }
 
         window.deleteDepartment = async function(docId) {
             if (confirm('هل أنت متأكد من حذف هذا القسم؟')) {
-                await deleteDoc(doc(db, "departments", docId));
-                loadAdminData();
+                try {
+                    await deleteDoc(doc(db, "departments", docId));
+                    await loadAdminData();
+                } catch (error) {
+                    console.error("خطأ في الحذف:", error);
+                }
             }
         }
 
         window.addUser = async function(e) {
             e.preventDefault();
             const username = document.getElementById('newUsername').value.trim();
-            const pass = document.getElementById('newPassword').value.trim();
+            const pass = document.getElementById('password').value.trim();
             const dept = document.getElementById('userDeptSelect').value;
 
             const btn = e.target.querySelector('button');
             btn.innerText = "جاري الحفظ...";
             btn.disabled = true;
 
-            await addDoc(collection(db, "users"), { username, pass, dept, role: 'employee' });
-            document.getElementById('userForm').reset();
-            btn.innerText = "حفظ المستخدم";
-            btn.disabled = false;
-            loadAdminData();
+            try {
+                await addDoc(collection(db, "users"), { username, pass, dept, role: 'employee' });
+                document.getElementById('userForm').reset();
+                await loadAdminData();
+            } catch (error) {
+                console.error("خطأ أثناء حفظ المستخدم:", error);
+                alert("فشل الحفظ! تأكد من قواعد الأمان.");
+            } finally {
+                btn.innerText = "حفظ المستخدم";
+                btn.disabled = false;
+            }
         }
 
         window.deleteUser = async function(docId) {
             if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
-                await deleteDoc(doc(db, "users", docId));
-                loadAdminData();
+                try {
+                    await deleteDoc(doc(db, "users", docId));
+                    await loadAdminData();
+                } catch (error) {
+                    console.error("خطأ في الحذف:", error);
+                }
             }
         }
 
@@ -149,7 +172,7 @@
             <h2 class="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">إضافة مستخدم / موظف جديد</h2>
             <form id="userForm" onsubmit="addUser(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                 <input type="text" id="newUsername" placeholder="اسم المستخدم" required class="border p-3 rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="password" id="password" id="newPassword" placeholder="كلمة المرور" required class="border p-3 rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="password" placeholder="كلمة المرور" required class="border p-3 rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <select id="userDeptSelect" required class="border p-3 rounded w-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">اختر القسم المسؤول عنه</option>
                 </select>
