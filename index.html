@@ -13,35 +13,50 @@
         
         <form id="loginForm" class="space-y-4">
             <div>
-                <label class="block text-gray-700 text-sm mb-2">اسم المستخدم / الموظف</label>
-                <input type="text" id="username" required placeholder="مثال: Ahmed_Ali" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label class="block text-gray-700 text-sm mb-2">اسم المستخدم</label>
+                <input type="text" id="username" required placeholder="أدخل اسم المستخدم" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
             <div>
-                <label class="block text-gray-700 text-sm mb-2">القسم المسؤول عنه</label>
-                <select id="userDepartment" required class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">اختر القسم</option>
-                    <option value="المواد الجافة">المواد الجافة</option>
-                    <option value="المبردة والمجمدة">المبردة والمجمدة</option>
-                    <option value="المنظفات والعناية">المنظفات والعناية</option>
-                    <option value="المستودع العام">المستودع العام</option>
-                </select>
+                <label class="block text-gray-700 text-sm mb-2">كلمة المرور</label>
+                <input type="password" id="password" required placeholder="أدخل كلمة المرور" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
-            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold">دخول لوحة التحكم</button>
+            <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold">دخول</button>
         </form>
     </div>
 
     <script>
+        // تهيئة حساب الأدمن الافتراضي والأقسام أول مرة
+        let users = JSON.parse(localStorage.getItem('users')) || [
+            { username: 'admin', pass: '1234', dept: 'الإدارة', role: 'admin' }
+        ];
+        localStorage.setItem('users', JSON.stringify(users));
+
+        let departments = JSON.parse(localStorage.getItem('departments')) || ['المواد الجافة', 'المبردة والمجمدة', 'المنظفات والعناية', 'المستودع العام'];
+        localStorage.setItem('departments', JSON.stringify(departments));
+
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const department = document.getElementById('userDepartment').value;
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
 
-            sessionStorage.setItem('currentUser', username);
-            sessionStorage.setItem('currentDept', department);
+            const foundUser = users.find(user => user.username === u && user.pass === p);
 
-            window.location.href = 'dashboard.html';
+            if (!foundUser) {
+                alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
+                return;
+            }
+
+            sessionStorage.setItem('currentUser', foundUser.username);
+            sessionStorage.setItem('currentDept', foundUser.dept);
+            sessionStorage.setItem('userRole', foundUser.role);
+
+            if (foundUser.role === 'admin') {
+                window.location.href = 'admin.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
         });
     </script>
 </body>
