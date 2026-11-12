@@ -3,81 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - إدارة المواد بالصور والمواقع</title>
+    <title>لوحة تحكم المدير - الإدارة</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-50 font-sans">
 
-    <div class="container mx-auto p-6 max-w-6xl">
-        <!-- الشريط العلوي ومعلومات المستخدم -->
+    <div class="container mx-auto p-6 max-w-5xl">
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex justify-between items-center">
-            <div>
-                حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
-                القسم: <span id="displayDept" class="font-bold text-gray-700"></span>
-            </div>
+            <h1 class="text-xl font-bold text-gray-800">لوحة تحكم المشرف (Admin Control)</h1>
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600">تسجيل الخروج</button>
         </header>
 
-        <!-- نموذج إضافة مادة مع اختيار/تصوير الصورة -->
+        <!-- إدارة الأقسام -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة (صورة من الجهاز أو الكاميرا)</h2>
-            <form id="itemForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-                
-                <!-- حقل رفع الصورة أو الكاميرا -->
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">صورة المادة (كاميرا أو ملف):</label>
-                    <input type="file" id="itemImageFile" accept="image/*" capture="environment" required class="border p-1.5 rounded w-full text-xs bg-gray-50">
-                </div>
-                
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">مكان التخزين:</label>
-                    <input type="text" id="itemLocation" placeholder="مثال: الثلاجة 1" required class="border p-2 rounded w-full text-sm">
-                </div>
-                
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">الكمية:</label>
-                    <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2 rounded w-full text-sm">
-                </div>
-                
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">تاريخ الانتهاء:</label>
-                    <input type="date" id="itemExpiryDate" required class="border p-2 rounded w-full text-sm">
-                </div>
-                
-                <div class="flex items-end">
-                    <button type="submit" class="w-full bg-blue-600 text-white p-2.5 rounded hover:bg-blue-700 font-bold text-sm">حفظ المادة</button>
-                </div>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">إضافة قسم جديد</h2>
+            <form id="deptForm" class="flex gap-4">
+                <input type="text" id="newDeptName" placeholder="اسم القسم الجديد" required class="border p-2 rounded flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">إضافة القسم</button>
+            </form>
+            <div class="mt-4">
+                <h3 class="text-sm font-bold text-gray-600 mb-2">الأقسام الحالية:</h3>
+                <div id="deptList" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
+        <!-- إدارة المستخدمين وكلمات المرور -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">إضافة مستخدم / موظف جديد</h2>
+            <form id="userForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input type="text" id="newUsername" placeholder="اسم المستخدم" required class="border p-2 rounded">
+                <input type="password" id="newPassword" placeholder="كلمة المرور" required class="border p-2 rounded">
+                <select id="userDeptSelect" required class="border p-2 rounded bg-white">
+                    <option value="">اختر القسم المسؤول عنه</option>
+                </select>
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">حفظ المستخدم</button>
             </form>
         </div>
 
-        <!-- أزرار التصفية والتصدير -->
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold text-gray-700">مخزون القسم والصور</h2>
-            <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold text-sm">
-                📄 تصدير كشف القسم (PDF)
-            </button>
-        </div>
-
-        <!-- جدول عرض المواد والصور -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <!-- جدول المستخدمين الحاليين -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-4">
+            <h2 class="text-lg font-semibold mb-4 text-gray-700">المستخدمون المسجلون بالنظام</h2>
             <table class="w-full text-right border-collapse">
-                <thead class="bg-gray-100 text-gray-600 uppercase text-sm">
+                <thead class="bg-gray-100 text-gray-600 text-sm">
                     <tr>
-                        <th class="p-3">صورة المادة</th>
-                        <th class="p-3">مكان التخزين</th>
-                        <th class="p-3">الكمية</th>
-                        <th class="p-3">تاريخ الانتهاء</th>
-                        <th class="p-3">الحالة</th>
+                        <th class="p-3">اسم المستخدم</th>
+                        <th class="p-3">كلمة المرور</th>
+                        <th class="p-3">القسم</th>
                         <th class="p-3">الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="itemTableBody" class="divide-y divide-gray-200"></tbody>
+                <tbody id="usersTableBody" class="divide-y divide-gray-200 text-sm"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        const currentUser = sessionStorage.getItem('currentUser');
-        const
+        if (sessionStorage.getItem('userRole') !== 'admin') {
+            window.location.href = 'index.html';
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        let departments = JSON.parse(localStorage.getItem('departments')) || [];
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+
+        function renderAdminData() {
+            const deptListDiv = document.getElementById('deptList');
+            const userDeptSelect = document.getElementById('userDeptSelect');
+            deptListDiv.innerHTML = '';
+            userDeptSelect.innerHTML = '<option value="">اختر القسم المسؤول عنه</option>';
+
+            departments.forEach((dept) => {
+                deptListDiv.innerHTML += `<span class="bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded text-sm">${dept}</span>`;
+                userDeptSelect.innerHTML += `<option value="${dept}">${dept}</option>`;
+            });
+
+            const usersTableBody = document.getElementById('usersTableBody');
+            usersTableBody.innerHTML = '';
+            users.forEach((usr, index) => {
+                if (usr.role === 'admin') return;
+                usersTableBody.innerHTML += `
+                    <tr>
+                        <td class="p-3">${usr.username}</td>
+                        <td class="p-3 font-mono">••••</td>
+                        <td class="p-3">${usr.dept}</td>
+                        <td class="p-3"><button onclick="deleteUser(${index})" class="text-red-600 hover:text-red-800">حذف</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('deptForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('newDeptName').value.trim();
+            if (departments.includes(name)) {
+                alert('هذا القسم موجود مسبقاً!');
+                return;
+            }
+            departments.push(name);
+            localStorage.setItem('departments', JSON.stringify(departments));
+            document.getElementById('newDeptName').value = '';
+            renderAdminData();
+        });
+
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value.trim();
+            const pass = document.getElementById('newPassword').value;
+            const dept = document.getElementById('userDeptSelect').value;
+
+            users.push({ username, pass, dept, role: 'employee' });
+            localStorage.setItem('users', JSON.stringify(users));
+            document.getElementById('userForm').reset();
+            renderAdminData();
+        });
+
+        function deleteUser(index) {
+            users.splice(index, 1);
+            localStorage.setItem('users', JSON.stringify(users));
+            renderAdminData();
+        }
+
+        renderAdminData();
+    </script>
+</body>
+</html>
