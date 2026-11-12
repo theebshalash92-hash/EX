@@ -3,10 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - إدارة المواد بالصور والمواقع</title>
+    <title>لوحة التحكم - إدارة المواد السحابية</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwt1K6LBGJmyTjx_219kc9xmZYldJ8rEo",
+            authDomain: "ex-date-1db53.firebaseapp.com",
+            projectId: "ex-date-1db53",
+            storageBucket: "ex-date-1db53.firebasestorage.app",
+            messagingSenderId: "367695041348",
+            appId: "1:367695041348:web:d9d4695dd70606fb9dbd11",
+            measurementId: "G-9CHBWJ6VGG"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const currentUser = sessionStorage.getItem('currentUser');
+        const currentDept = sessionStorage.getItem('currentDept');
+
+        if (!currentUser || !currentDept) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('displayUser').innerText = currentUser;
+        document.getElementById('displayDept').innerText = currentDept;
+
+        window.logout = function() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        function checkExpiryStatus(expiryDateStr) {
+            const today = new Date();
+            const expiryDate = new Date(expiryDateStr);
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">منتهية الصلاحية</span>`;
+            } else if (diffDays <= 30) {
+                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">قريب الانتهاء (${diffDays} يوم)</span>`;
+            } else {
+                return `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">سارية المفعول</span>`;
+            }
+        }
+
+        let globalInventory = [];
+
+        async function renderInventory() {
+            const tableBody = document.getElementById('itemTableBody');
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500">جاري تحميل البيانات من السحابة...</td></tr>';
+            
+            const querySnapshot = await getDocs(collection(db, "inventory"));
+            globalInventory = [];
+            
+            querySnapshot.forEach((docSnap) => {
+                globalInventory.push({ id: docSnap.id, ...docSnap.data() });
+            });
+
+            tableBody.innerHTML = '';
+            const deptInventory = globalInventory.filter(item => item.department === currentDept);
+
+            if (deptInventory.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا توجد مواد مسجلة في هذا القسم حالياً</td></tr>`;
+                return;
+            }
+
+            deptInventory.forEach((item) => {
+                const statusBadge = checkExpiryStatus(item.expiryDate);
+                tableBody.innerHTML += `
+                    <tr>
+                        <td class="p-3">
+                            <img src="${item.image}" alt="صورة" class="w-12 h-12 object-cover rounded-md border shadow-sm">
+                        </td>
+                        <td class="p-3 text-blue-700 font-semibold"><span class="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-xs">${item.location}</span></td>
+                        <td class="p-3 text-gray-700 font-bold">${item.quantity}</td>
+                        <td class="p-3 text-gray-600">${item.expiryDate}</td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3"><button onclick="deleteItem('${item.id}')" class="text-red-600 hover:text-red-800 text-sm">حذف</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.addItem = function(e) {
+            e.preventDefault();
+            const imageFile = document.getElementById('itemImageFile').files[0];
+            const location = document.getElementById('itemLocation').value;
+            const quantity = parseInt(document.getElementById('itemQuantity').value);
+            const expiryDate = document.getElementById('itemExpiryDate').value;
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    const base64Image = event.target.result;
+                    await addDoc(collection(db, "inventory"), {
+                        image: base64Image,
+                        location,
+                        department: currentDept,
+                        quantity,
+                        expiryDate
+                    });
+                    document.getElementById('itemForm').reset();
+                    renderInventory();
+                };
+                reader.readAsDataURL(imageFile);
+            }
+        }
+
+        window.deleteItem = async function(id) {
+            if (confirm('هل تريد حذف هذه المادة؟')) {
+                await deleteDoc(doc(db, "inventory", id));
+                renderInventory();
+            }
+        }
+
+        window.exportPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text(`Inventory Report - ${currentDept}`, 14, 20);
+            doc.setFontSize(12);
+            doc.text(`Generated by: ${currentUser} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+
+            const deptInventory = globalInventory.filter(item => item.department === currentDept);
+            const tableData = deptInventory.map((item, i) => [
+                i + 1, 
+                item.location, 
+                item.quantity, 
+                item.expiryDate
+            ]);
+
+            doc.autoTable({
+                startY: 35,
+                head: [['#', 'Location', 'Quantity', 'Expiry Date']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 128, 185] }
+            });
+
+            doc.save(`${currentDept}-Inventory-Report.pdf`);
+        }
+
+        window.onload = renderInventory;
+        window.addItem = addItem;
+    </script>
 </head>
 <body class="bg-gray-50 font-sans">
 
@@ -19,12 +167,11 @@
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600">تسجيل الخروج</button>
         </header>
 
-        <!-- نموذج إضافة مادة (صورة وكاميرا + موقع + كمية وتاريخ) -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة (كاميرا أو ملف)</h2>
-            <form id="itemForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">إضافة مادة جديدة (سحابي متزامن)</h2>
+            <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                 <div>
-                    <label class="block text-xs text-gray-600 mb-1">صورة المادة:</label>
+                    <label class="block text-xs text-gray-600 mb-1">صورة المادة (كاميرا أو ملف):</label>
                     <input type="file" id="itemImageFile" accept="image/*" capture="environment" required class="border p-1.5 rounded w-full text-xs bg-gray-50">
                 </div>
                 <div>
@@ -40,13 +187,13 @@
                     <input type="date" id="itemExpiryDate" required class="border p-2 rounded w-full text-sm">
                 </div>
                 <div class="flex items-end">
-                    <button type="submit" class="w-full bg-blue-600 text-white p-2.5 rounded hover:bg-blue-700 font-bold text-sm">حفظ المادة</button>
+                    <button type="submit" class="w-full bg-blue-600 text-white p-2.5 rounded hover:bg-blue-700 font-bold text-sm">حفظ للسحابة</button>
                 </div>
             </form>
         </div>
 
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold text-gray-700">مخزون القسم والصور</h2>
+            <h2 class="text-xl font-semibold text-gray-700">مخزون القسم السحابي</h2>
             <button onclick="exportPDF()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold text-sm">
                 📄 تصدير كشف القسم (PDF)
             </button>
@@ -68,131 +215,5 @@
             </table>
         </div>
     </div>
-
-    <script>
-        const currentUser = sessionStorage.getItem('currentUser');
-        const currentDept = sessionStorage.getItem('currentDept');
-
-        if (!currentUser || !currentDept) {
-            window.location.href = 'index.html';
-        }
-
-        document.getElementById('displayUser').innerText = currentUser;
-        document.getElementById('displayDept').innerText = currentDept;
-
-        function logout() {
-            sessionStorage.clear();
-            window.location.href = 'index.html';
-        }
-
-        let inventory = JSON.parse(localStorage.getItem('inventory')) || [];
-        const form = document.getElementById('itemForm');
-        const tableBody = document.getElementById('itemTableBody');
-
-        function checkExpiryStatus(expiryDateStr) {
-            const today = new Date();
-            const expiryDate = new Date(expiryDateStr);
-            const diffTime = expiryDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays < 0) {
-                return `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">منتهية الصلاحية</span>`;
-            } else if (diffDays <= 30) {
-                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">قريب الانتهاء (${diffDays} يوم)</span>`;
-            } else {
-                return `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">سارية المفعول</span>`;
-            }
-        }
-
-        function renderInventory() {
-            tableBody.innerHTML = '';
-            const deptInventory = inventory.filter(item => item.department === currentDept);
-
-            if (deptInventory.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا توجد مواد مسجلة في هذا القسم حالياً</td></tr>`;
-                return;
-            }
-
-            deptInventory.forEach((item, index) => {
-                const statusBadge = checkExpiryStatus(item.expiryDate);
-                const globalIndex = inventory.findIndex(inv => inv === item);
-                
-                tableBody.innerHTML += `
-                    <tr>
-                        <td class="p-3">
-                            <img src="${item.image}" alt="صورة" class="w-12 h-12 object-cover rounded-md border shadow-sm">
-                        </td>
-                        <td class="p-3 text-blue-700 font-semibold"><span class="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-xs">${item.location}</span></td>
-                        <td class="p-3 text-gray-700 font-bold">${item.quantity}</td>
-                        <td class="p-3 text-gray-600">${item.expiryDate}</td>
-                        <td class="p-3">${statusBadge}</td>
-                        <td class="p-3"><button onclick="deleteItem(${globalIndex})" class="text-red-600 hover:text-red-800 text-sm">حذف</button></td>
-                    </tr>
-                `;
-            });
-        }
-
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const imageFile = document.getElementById('itemImageFile').files[0];
-            const location = document.getElementById('itemLocation').value;
-            const quantity = parseInt(document.getElementById('itemQuantity').value);
-            const expiryDate = document.getElementById('itemExpiryDate').value;
-
-            if (imageFile) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const base64Image = event.target.result;
-                    inventory.push({ 
-                        image: base64Image, 
-                        location, 
-                        department: currentDept, 
-                        quantity, 
-                        expiryDate 
-                    });
-                    localStorage.setItem('inventory', JSON.stringify(inventory));
-                    form.reset();
-                    renderInventory();
-                };
-                reader.readAsDataURL(imageFile);
-            }
-        });
-
-        function deleteItem(index) {
-            inventory.splice(index, 1);
-            localStorage.setItem('inventory', JSON.stringify(inventory));
-            renderInventory();
-        }
-
-        function exportPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(18);
-            doc.text(`Inventory Report - ${currentDept}`, 14, 20);
-            doc.setFontSize(12);
-            doc.text(`Generated by: ${currentUser} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
-
-            const deptInventory = inventory.filter(item => item.department === currentDept);
-            const tableData = deptInventory.map((item, i) => [
-                i + 1, 
-                item.location, 
-                item.quantity, 
-                item.expiryDate
-            ]);
-
-            doc.autoTable({
-                startY: 35,
-                head: [['#', 'Location', 'Quantity', 'Expiry Date']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [41, 128, 185] }
-            });
-
-            doc.save(`${currentDept}-Inventory-Report.pdf`);
-        }
-
-        renderInventory();
-    </script>
 </body>
 </html>
