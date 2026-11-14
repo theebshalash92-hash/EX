@@ -15,7 +15,7 @@
     <div class="container mx-auto p-6 max-w-6xl">
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex justify-between items-center">
             <div>
-                اهلا ، <span id="displayUser" class="font-bold text-blue-600"></span> | 
+                حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
                 القسم: <span id="displayDept" class="font-bold text-gray-700"></span>
             </div>
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 font-bold">تسجيل الخروج</button>
@@ -29,7 +29,7 @@
                 <button type="button" onclick="startScanner()" class="bg-indigo-600 text-white px-4 py-2 rounded font-bold text-sm shadow hover:bg-indigo-700">
                     📷 فتح الكاميرا لمسح الباركود
                 </button>
-                <div id="reader" class="w-full max-w-md mt-3 mx-hidden"></div>
+                <div id="reader" class="w-full max-w-md mt-3"></div>
             </div>
 
             <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
@@ -54,7 +54,7 @@
                     <input type="date" id="itemExpiryDate" required class="border p-2.5 rounded w-full text-sm">
                 </div>
                 <div class="md:col-span-5 flex justify-end mt-2">
-                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 font-bold text-sm shadow-md">حفظ المادة في السحابة</button>
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 font-bold text-sm shadow-md">حفظ المادة في جوجل شيت</button>
                 </div>
             </form>
         </div>
@@ -76,132 +76,15 @@
                         <th class="p-3">الكمية</th>
                         <th class="p-3">تاريخ الانتهاء</th>
                         <th class="p-3">حالة الصلاحية والأيام</th>
-                        <th class="p-3">الإجراءات</th>
                     </tr>
                 </thead>
-                <tbody id="itemTableBody" class="divide-y divide-gray-200"></tbody>
+                <tbody id="itemTableBody" class="divide-y divide-gray-200">
+                    <tr><td colspan="6" class="text-center p-6 text-gray-500">جاهز لإضافة المواد عبر الكاميرا والباركود</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // ضع هنا رابط الـ Web App الخاص بـ Google Apps Script
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxdgLnLymXbg9AXFW2J2iHvjb5wJdRQA5QFQwYS-4B3k3PFhdGuOtVgx4-Zjh0jhgEG/exec";
-
-        const currentUser = sessionStorage.getItem('currentUser');
-        const currentDept = sessionStorage.getItem('currentDept');
-
-        if (!currentUser || !currentDept) {
-            window.location.href = 'index.html';
-        }
-
-        document.getElementById('displayUser').innerText = currentUser;
-        document.getElementById('displayDept').innerText = currentDept;
-
-        function logout() {
-            sessionStorage.clear();
-            window.location.href = 'index.html';
-        }
-
-        // تشغيل كاميرا الباركود
-        function startScanner() {
-            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            scanner.render(onScanSuccess, onScanFailure);
-
-            function onScanSuccess(decodedText) {
-                document.getElementById('itemBarcode').value = decodedText;
-                scanner.clear();
-                document.getElementById('reader').innerHTML = "";
-                lookupBarcode(decodedText);
-            }
-
-            function onScanFailure(error) {
-                // تجاهل أخطاء المسح المؤقتة أثناء توجيه الكاميرا
-            }
-        }
-
-        // الاستعلام عن اسم الصنف من Google Sheet بناءً على الباركود
-        async function lookupBarcode(barcode) {
-            if (!barcode) return;
-            try {
-                const response = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
-                const data = await response.json();
-                if (data.success) {
-                    document.getElementById('itemName').value = data.name;
-                    if(data.location) document.getElementById('itemLocation').value = data.location;
-                } else {
-                    document.getElementById('itemName').value = "صنف جديد (غير مسجل بالشيت)";
-                }
-            } catch (err) {
-                console.error("خطأ في الاتصال بالجوجل شيت:", err);
-            }
-        }
-
-        function checkExpiryStatus(expiryDateStr) {
-            const today = new Date();
-            const expiryDate = new Date(expiryDateStr);
-            const diffTime = expiryDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays < 0) {
-                return `<span class="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded font-bold">منتهية الصلاحية (مضى ${Math.abs(diffDays)} يوم)</span>`;
-            } else if (diffDays <= 30) {
-                return `<span class="bg-yellow-100 text-yellow-800 text-xs px-2.5 py-1 rounded font-bold">قريب الانتهاء (متبقي ${diffDays} يوم)</span>`;
-            } else {
-                return `<span class="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded font-bold">سارية المفعول (متبقي ${diffDays} يوم)</span>`;
-            }
-        }
-
-        let globalInventory = [];
-
-        async function renderInventory() {
-            const tableBody = document.getElementById('itemTableBody');
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500 font-bold">جاري تحميل البيانات...</td></tr>';
-            
-            // يمكنك جلب البيانات من الشيت أو التخزين المؤقت
-            tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-gray-500">جاهز لإضافة المواد عبر الكاميرا والباركود</td></tr>`;
-        }
-
-        async function addItem(e) {
-            e.preventDefault();
-            const barcode = document.getElementById('itemBarcode').value.trim();
-            const name = document.getElementById('itemName').value.trim();
-            const location = document.getElementById('itemLocation').value.trim();
-            const quantity = parseInt(document.getElementById('itemQuantity').value);
-            const expiryDate = document.getElementById('itemExpiryDate').value;
-
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            submitBtn.innerText = "جاري الحفظ بالشيت...";
-            submitBtn.disabled = true;
-
-            try {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ barcode, name, department: currentDept, location, quantity, expiryDate })
-                });
-
-                alert("تم حفظ المادة بنجاح في Google Sheet!");
-                document.getElementById('itemForm').reset();
-                document.getElementById('itemName').value = "";
-            } catch (error) {
-                console.error("خطأ أثناء الحفظ:", error);
-                alert("فشل الحفظ في جوجل شيت!");
-            } finally {
-                submitBtn.innerText = "حفظ المادة في السحابة";
-                submitBtn.disabled = false;
-            }
-        }
-
-        function exportPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(18);
-            doc.text(`Inventory Report - ${currentDept}`, 14, 20);
-            doc.save(`${currentDept}-Inventory-Report.pdf`);
-        }
-
-        window.onload = renderInventory;
-    </script>
-</body>
-</html>
+        // استبدل هذا الرابط برابط الـ Web App الخاص بـ Google Apps Script الذي قمت بنشره
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby1iPT5STsIz8Upzi5HWGbCXfkGJ5GU5_n7UXnnwyo2ej3yUnlsGfd4VcqWxTMdH0Wr/exec
