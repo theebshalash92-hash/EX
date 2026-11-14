@@ -98,11 +98,9 @@
     </div>
 
     <script>
-        // رابط الـ Web App للحفظ (POST)
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpAU1aEV4ySpxu2QKD5on-coB8v-zYt2V-m3zhb2kcLH1X19T6Og2YDx_n7Zwbw2q4/exec";
         
-        // رابط قراءة الشيت مباشرة عبر CSV (استبدل SHEET_ID بمعرف جدولك الحقيقي الموجود في رابط الشيت)
-        // مثال: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit -> SPREADSHEET_ID هو 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms
+        // رابط قراءة الشيت مباشرة عبر CSV (ضع معرف شيتك هنا بدلاً من النص الافتراضي)
         const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE";
         const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 
@@ -117,10 +115,9 @@
             window.location.href = 'index.html';
         }
 
-        // جلب وقراءة بيانات الشيت كملف CSV لتفادي أخطاء CORS تماماً
         async function fetchSheetData() {
             if (SPREADSHEET_ID === "YOUR_SPREADSHEET_ID_HERE") {
-                console.log("يرجى وضع معرف الشيت SPREADSHEET_ID في الكود.");
+                alert("يرجى وضع معرف جدول جوجل شيت (SPREADSHEET_ID) في الكود.");
                 return;
             }
             try {
@@ -133,9 +130,8 @@
                     const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
                     if (cols.length >= 2 && cols[0]) {
                         items.push({
-                            barcode: cols[0],
-                            name: cols[1],
-                            location: cols[3] || ''
+                            barcode: cols[0], // العمود الأول Bracode
+                            name: cols[1]    // العمود الثاني name
                         });
                     }
                 }
@@ -148,20 +144,16 @@
             }
         }
 
-        // البحث السريع محلياً عن الباركود فور إدخاله أو مسحه
         function lookupBarcodeLocally(barcode) {
             if (!barcode || barcode.trim() === "") return;
             let masterItems = JSON.parse(localStorage.getItem('sheet_master_items') || '[]');
-            const found = masterItems.find(item => String(item.barcode).trim() === String(barcode.trim()));
+            const found = masterItems.find(item => String(item.barcode).trim() === String(barcode).trim());
             
             const nameInput = document.getElementById('itemName');
-            const locInput = document.getElementById('itemLocation');
-
             if (found) {
                 nameInput.value = found.name;
-                if (found.location) locInput.value = found.location;
             } else {
-                nameInput.value = ""; // يسمح بالكتابة اليدوية إذا لم يوجد
+                nameInput.value = ""; // يسمح بالكتابة اليدوية إذا لم يوجد في الشيت
             }
         }
 
@@ -317,7 +309,7 @@
 
         window.onload = function() {
             loadInventory();
-            fetchSheetData(); // سحب بيانات الشيت تلقائياً عند الفتح
+            fetchSheetData(); // جلب الأصناف آلياً ومطابقتها مع عمود Bracode و name
         };
     </script>
 </body>
