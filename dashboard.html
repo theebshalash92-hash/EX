@@ -34,9 +34,12 @@
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">إضافة مادة جديدة (قارئ باركود متطور 1D + 2D)</h2>
             
-            <div class="mb-6">
+            <div class="mb-6 flex flex-wrap gap-3 items-center">
                 <button type="button" onclick="startScanner()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-indigo-700 transition flex items-center gap-2">
                     📷 تشغيل كاميرا الباركود (Barcode / QR)
+                </button>
+                <button type="button" onclick="fetchSheetData()" class="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-black transition">
+                    🔄 تحديث بيانات الأصناف من الشيت
                 </button>
                 <div id="reader" class="w-full max-w-md mt-3 border rounded-lg overflow-hidden shadow-inner"></div>
             </div>
@@ -44,14 +47,11 @@
             <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
-                    <input type="text" id="itemBarcode" placeholder="امسح أو اكتب الباركود" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="itemBarcode" placeholder="امسح أو اكتب الباركود" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcodeLocally(this.value)">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصنف:</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="itemName" placeholder="اكتب أو اضغط بحث" required class="border p-2.5 rounded-lg w-full text-sm bg-white font-bold text-blue-900 focus:ring-2 focus:ring-blue-500">
-                        <button type="button" onclick="manualLookup()" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 whitespace-nowrap">بحث بالشيت</button>
-                    </div>
+                    <input type="text" id="itemName" placeholder="اكتب أو سيُجلب تلقائياً" required class="border p-2.5 rounded-lg w-full text-sm bg-white font-bold text-blue-900 focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">مكان التخزين:</label>
@@ -98,8 +98,7 @@
     </div>
 
     <script>
-        // رابط الـ Web App الجديد والمحدث
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpAU1aEV4ySpxu2QKD5on-coB8v-zYt2V-m3zhb2kcLH1X19T6Og2YDx_n7Zwbw2q4/exec";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7OwbeTX2lx_U9K4Hm1zOt79kXSDMXc3SJnwuV8nm5vn1bI9AjhUOmJoXft0vrMFYt/exec";
 
         const currentUser = sessionStorage.getItem('currentUser') || 'وليد';
         const currentDept = sessionStorage.getItem('currentDept') || 'منظفات';
@@ -112,6 +111,38 @@
             window.location.href = 'index.html';
         }
 
+        // جلب الأصناف من الشيت وتخزينها محلياً لتفادي مشاكل الاتصال اللاحقة
+        async function fetchSheetData() {
+            try {
+                const response = await fetch(WEB_APP_URL);
+                const data = await response.json();
+                if (data.success && data.items) {
+                    localStorage.setItem('sheet_master_items', JSON.stringify(data.items));
+                    alert("تم تحديث وجلب قاعدة بيانات الأصناف من الشيت بنجاح!");
+                }
+            } catch (err) {
+                console.error("خطأ في جلب بيانات الشيت:", err);
+                alert("تعذر جلب البيانات من الشيت، سيتم الاعتماد على الذاكرة المحلية المؤقتة.");
+            }
+        }
+
+        // البحث محلياً وبسرعة فائقة عن الباركود وجلب الاسم والمكان
+        function lookupBarcodeLocally(barcode) {
+            if (!barcode || barcode.trim() === "") return;
+            let masterItems = JSON.parse(localStorage.getItem('sheet_master_items') || '[]');
+            const found = masterItems.find(item => String(item.barcode).trim() === String(barcode).trim());
+            
+            const nameInput = document.getElementById('itemName');
+            const locInput = document.getElementById('itemLocation');
+
+            if (found) {
+                nameInput.value = found.name;
+                if (found.location) locInput.value = found.location;
+            } else {
+                nameInput.value = ""; // يسمح بالكتابة اليدوية إذا لم يوجد
+            }
+        }
+
         function startScanner() {
             const scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 250 });
             scanner.render(onScanSuccess, onScanFailure);
@@ -120,40 +151,9 @@
                 document.getElementById('itemBarcode').value = decodedText;
                 scanner.clear();
                 document.getElementById('reader').innerHTML = "";
-                lookupBarcode(decodedText);
+                lookupBarcodeLocally(decodedText);
             }
             function onScanFailure(error) {}
-        }
-
-        async function lookupBarcode(barcode) {
-            if (!barcode || barcode.trim() === "") return;
-            const nameInput = document.getElementById('itemName');
-            nameInput.value = "جاري البحث في الشيت...";
-            
-            try {
-                const response = await fetch(`${WEB_APP_URL}?barcode=${encodeURIComponent(barcode.trim())}`);
-                const data = await response.json();
-                if (data.success) {
-                    nameInput.value = data.name;
-                    if(data.location) document.getElementById('itemLocation').value = data.location;
-                } else {
-                    nameInput.value = "";
-                    alert("الباركود غير موجود في جوجل شيت. يمكنك كتابة اسم الصنف يدوياً.");
-                }
-            } catch (err) {
-                console.error("خطأ في الاتصال بجوجل شيت:", err);
-                nameInput.value = "";
-                alert("تعذر جلب البيانات من الشيت، تأكد من اتصال الإنترنت أو النشر.");
-            }
-        }
-
-        function manualLookup() {
-            const barcode = document.getElementById('itemBarcode').value;
-            if (!barcode) {
-                alert("يرجى إدخال أو مسح رقم الباركود أولاً!");
-                return;
-            }
-            lookupBarcode(barcode);
         }
 
         function checkExpiryStatus(expiryDateStr) {
@@ -293,7 +293,10 @@
             doc.save(`${currentDept}-Inventory-Report.pdf`);
         }
 
-        window.onload = loadInventory;
+        window.onload = function() {
+            loadInventory();
+            fetchSheetData(); // جلب الأصناف عند فتح الصفحة تلقائياً
+        };
     </script>
 </body>
 </html>
