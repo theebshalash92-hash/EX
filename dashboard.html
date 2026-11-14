@@ -15,7 +15,311 @@
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex justify-between items-center">
             <div>
                 حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
-                القسم: <span id="displayDept" class="font-bold text-gray-700"></span>
+                القسم: <span id="displayDept" class="<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المخازن والتنبيهات الذكية</title>
+    <!-- Tailwind CSS للتصميم الاحترافي -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة قارئ الباركود (1D & 2D / QR) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- مكتبات تصدير الـ PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+    <!-- شريط التنبيهات العبوي الفوري (أعلى الشاشة للمواد التي تنتهي خلال 10 أيام) -->
+    <div id="alertBanner" class="bg-red-600 text-white text-center py-2 px-4 font-bold text-sm hidden shadow-md">
+        ⚠️ تنبيه عاجل: توجد مواد في قسمك تقترب من الانتهاء خلال أقل من 10 أيام! يرجى مراجعتها فوراً.
+    </div>
+
+    <div class="container mx-auto p-4 md:p-6 max-w-7xl">
+        <!-- الشريط العلوي ومعلومات المستخدم -->
+        <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-sm md:text-base">
+                الموظف: <span id="displayUser" class="font-bold text-blue-600"></span> | 
+                القسم الحالي: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportPDF()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition">
+                    📄 تصدير تقرير القسم (PDF)
+                </button>
+                <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-red-600 transition">
+                    تسجيل الخروج
+                </button>
+            </div>
+        </header>
+
+        <!-- قسم مسح الباركود وإدخال المادة -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">إضافة مادة جديدة (قارئ باركود متطور 1D + 2D)</h2>
+            
+            <!-- أداة مسح الباركود عبر الكاميرا -->
+            <div class="mb-6">
+                <button type="button" onclick="startScanner()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-indigo-700 transition flex items-center gap-2">
+                    📷 تشغيل كاميرا الباركود (Barcode / QR)
+                </button>
+                <div id="reader" class="w-full max-w-md mt-3 border rounded-lg overflow-hidden shadow-inner"></div>
+            </div>
+
+            <!-- نموذج إدخال البيانات -->
+            <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
+                    <input type="text" id="itemBarcode" placeholder="امسح الباركود أو اكتبه" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcode(this.value)">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصنف (مسترجع من الشيت):</label>
+                    <input type="text" id="itemName" placeholder="يتم جلبه تلقائياً..." required class="border p-2.5 rounded-lg w-full text-sm bg-gray-100 font-bold text-blue-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">مكان التخزين:</label>
+                    <input type="text" id="itemLocation" placeholder="مثال: رف 3 - الثلاجة" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">الكمية:</label>
+                    <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء:</label>
+                    <input type="date" id="itemExpiryDate" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-5 flex justify-end mt-2">
+                    <button type="submit" id="saveBtn" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-bold text-sm shadow-md transition">
+                        حفظ المادة وإضافتها لمخزون القسم
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- جدول مخزون القسم والتنبيهات الحية -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-4">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">مخزون القسم الحالي والتنبيهات الحية</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                        <tr>
+                            <th class="p-3">#</th>
+                            <th class="p-3">الباركود</th>
+                            <th class="p-3">اسم الصنف</th>
+                            <th class="p-3">مكان التخزين</th>
+                            <th class="p-3">الكمية</th>
+                            <th class="p-3">تاريخ الانتهاء</th>
+                            <th class="p-3">حالة الصلاحية والتنبيه الذكي</th>
+                            <th class="p-3">الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemTableBody" class="divide-y divide-gray-200 text-sm">
+                        <tr><td colspan="8" class="text-center p-6 text-gray-500">جاري تحميل بيانات المخزون...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // رابط جوجل شيت Web App الخاص بك
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyOj8DgVEWRrh5Vv9lT6CUzs0sZ_zoH4oaXfkYKmCgWHijto5cQ2b7xoLt2TQS8ZunH/exec";
+
+        const currentUser = sessionStorage.getItem('currentUser');
+        const currentDept = sessionStorage.getItem('currentDept');
+
+        if (!currentUser || !currentDept) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('displayUser').innerText = currentUser;
+        document.getElementById('displayDept').innerText = currentDept;
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        // تشغيل كاميرا الباركود (يدعم 1D و 2D تلقائياً عبر المكتبة)
+        function startScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 250 });
+            scanner.render(onScanSuccess, onScanFailure);
+
+            function onScanSuccess(decodedText) {
+                document.getElementById('itemBarcode').value = decodedText;
+                scanner.clear();
+                document.getElementById('reader').innerHTML = "";
+                lookupBarcode(decodedText);
+            }
+            function onScanFailure(error) {}
+        }
+
+        // استعلام اسم الصنف من Google Sheet بناءً على الباركود
+        async function lookupBarcode(barcode) {
+            if (!barcode || barcode.length < 2) return;
+            try {
+                const response = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('itemName').value = data.name;
+                    if(data.location) document.getElementById('itemLocation').value = data.location;
+                } else {
+                    document.getElementById('itemName').value = "";
+                }
+            } catch (err) {
+                console.error("خطأ في الاتصال بجوجل شيت:", err);
+            }
+        }
+
+        // حساب الأيام المتبقية وتوليد تنبيهات الشاشة المتقدمة (خلال 10 أيام)
+        function checkExpiryStatus(expiryDateStr) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const expiryDate = new Date(expiryDateStr);
+            expiryDate.setHours(0,0,0,0);
+            
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return { badge: `<span class="bg-red-200 text-red-900 text-xs px-2.5 py-1 rounded-full font-bold">منتهية الصلاحية (مضى ${Math.abs(diffDays)} يوم)</span>`, isNear: true };
+            } else if (diffDays <= 10) {
+                return { badge: `<span class="bg-red-500 text-white text-xs px-2.5 py-1 rounded-full font-bold animate-pulse">⚠️ تنبيه عاجل: متبقي ${diffDays} أيام فقط!</span>`, isNear: true };
+            } else if (diffDays <= 30) {
+                return { badge: `<span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold">قريب الانتهاء (متبقي ${diffDays} يوم)</span>`, isNear: false };
+            } else {
+                return { badge: `<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">سارية المفعول (متبقي ${diffDays} يوم)</span>`, isNear: false };
+            }
+        }
+
+        // تحميل وعرض مخزون القسم الخاص بالموظف فقط
+        function loadInventory() {
+            const tableBody = document.getElementById('itemTableBody');
+            let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+            
+            tableBody.innerHTML = '';
+            // فصل كل قسم عن الآخر تماماً
+            const deptItems = localData.filter(item => item.department === currentDept);
+
+            let hasUrgentAlert = false;
+
+            if (deptItems.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-500">لا توجد مواد مسجلة في قسم (${currentDept}) حتى الآن</td></tr>`;
+                document.getElementById('alertBanner').style.display = 'none';
+                return;
+            }
+
+            deptItems.forEach((item, index) => {
+                const statusObj = checkExpiryStatus(item.expiryDate);
+                if (statusObj.isNear) hasUrgentAlert = true;
+
+                tableBody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-3 text-gray-500">${index + 1}</td>
+                        <td class="p-3 font-mono text-xs font-bold text-gray-700">${item.barcode}</td>
+                        <td class="p-3 font-bold text-blue-900">${item.name}</td>
+                        <td class="p-3 text-gray-700">${item.location}</td>
+                        <td class="p-3 font-bold">${item.quantity}</td>
+                        <td class="p-3 font-mono text-gray-600">${item.expiryDate}</td>
+                        <td class="p-3">${statusObj.badge}</td>
+                        <td class="p-3">
+                            <button onclick="deleteItem('${item.barcode}', '${item.expiryDate}')" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded transition">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // إظهار شريط التنبيه العاجل اليومي إذا وجدت مواد قريبة الانتهاء خلال 10 أيام
+            if (hasUrgentAlert) {
+                document.getElementById('alertBanner').style.display = 'block';
+            } else {
+                document.getElementById('alertBanner').style.display = 'none';
+            }
+        }
+
+        // إضافة المادة وحفظها سحابياً ومحلياً للقسم المعزول
+        async function addItem(e) {
+            e.preventDefault();
+            const barcode = document.getElementById('itemBarcode').value.trim();
+            const name = document.getElementById('itemName').value.trim();
+            const location = document.getElementById('itemLocation').value.trim();
+            const quantity = parseInt(document.getElementById('itemQuantity').value);
+            const expiryDate = document.getElementById('itemExpiryDate').value;
+
+            const submitBtn = document.getElementById('saveBtn');
+            submitBtn.innerText = "جاري الحفظ في الشيت...";
+            submitBtn.disabled = true;
+
+            const newItem = { barcode, name, department: currentDept, location, quantity, expiryDate };
+
+            try {
+                // إرسال البيانات لجوجل شيت سحابياً
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newItem)
+                });
+
+                // تخزين محلي خاص بالقسم لتحديث الجدول والتنبيهات الحية فوراً
+                let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+                localData.push(newItem);
+                localStorage.setItem('supermarket_inventory', JSON.stringify(localData));
+
+                alert("تم حفظ المادة بنجاح وإضافتها لقائمة مخزون القسم والتنبيهات!");
+                document.getElementById('itemForm').reset();
+                loadInventory();
+            } catch (error) {
+                console.error("خطأ بالحفظ:", error);
+                alert("حدث خطأ أثناء الحفظ بالسحابة!");
+            } finally {
+                submitBtn.innerText = "حفظ المادة وإضافتها لمخزون القسم";
+                submitBtn.disabled = false;
+            }
+        }
+
+        // حذف مادة من القائمة المحلية للقسم
+        function deleteItem(barcode, expiryDate) {
+            if (confirm("هل أنت متأكد من حذف هذه المادة من القائمة؟")) {
+                let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+                localData = localData.filter(item => !(item.barcode === barcode && item.expiryDate === expiryDate && item.department === currentDept));
+                localStorage.setItem('supermarket_inventory', JSON.stringify(localData));
+                loadInventory();
+            }
+        }
+
+        // تصدير تقرير القسم بصيغة PDF (يدعم اللغة العربية بتنسيق نظيف)
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text(`Department Inventory Report: ${currentDept}`, 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Employee: ${currentUser} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+            
+            let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+            let deptItems = localData.filter(item => item.department === currentDept);
+            
+            const tableData = deptItems.map((item, i) => [
+                i + 1, item.barcode, item.name, item.location, item.quantity, item.expiryDate
+            ]);
+
+            doc.autoTable({
+                startY: 33,
+                head: [['#', 'Barcode', 'Item Name', 'Location', 'Quantity', 'Expiry Date']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 128, 185] }
+            });
+
+            doc.save(`${currentDept}-Inventory-Report.pdf`);
+        }
+
+        window.onload = loadInventory;
+    </script>
+</body>
+</html>font-bold text-gray-700"></span>
             </div>
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 font-bold">تسجيل الخروج</button>
         </header>
