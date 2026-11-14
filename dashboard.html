@@ -23,8 +23,8 @@
         <!-- الشريط العلوي ومعلومات المستخدم -->
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="text-sm md:text-base text-gray-700">
-                حياك الله، <span id="displayUser" class="font-bold text-blue-600">موظف</span> | 
-                القسم: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded">عام</span>
+                حياك الله، <span id="displayUser" class="font-bold text-blue-600">وليد</span> | 
+                القسم: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded">منظفات</span>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="exportPDF()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition">
@@ -52,11 +52,14 @@
             <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
-                    <input type="text" id="itemBarcode" placeholder="امسح الباركود أو اكتبه" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcode(this.value)">
+                    <input type="text" id="itemBarcode" placeholder="امسح أو اكتب الباركود" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcode(this.value)" onchange="lookupBarcode(this.value)">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصنف:</label>
-                    <input type="text" id="itemName" placeholder="اكتب أو سيُجلب تلقائياً" required class="border p-2.5 rounded-lg w-full text-sm bg-white font-bold text-blue-900 focus:ring-2 focus:ring-blue-500">
+                    <div class="flex gap-2">
+                        <input type="text" id="itemName" placeholder="اكتب أو سيُجلب تلقائياً" required class="border p-2.5 rounded-lg w-full text-sm bg-white font-bold text-blue-900 focus:ring-2 focus:ring-blue-500">
+                        <button type="button" onclick="manualLookup()" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black">بحث</button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">مكان التخزين:</label>
@@ -106,8 +109,7 @@
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzSbjM6Ge8IrRVhYhDrJqZjH2Vz-uGJItPLRIJ9_XBxKZWJxdnHPTt-RhZgvZ94tO8v/exec";
 
-        // التعامل الآمن مع الجلسة لضمان عدم توقف الصفحة
-        const currentUser = sessionStorage.getItem('currentUser') || 'موظف عام';
+        const currentUser = sessionStorage.getItem('currentUser') || 'وليد';
         const currentDept = sessionStorage.getItem('currentDept') || 'منظفات';
 
         document.getElementById('displayUser').innerText = currentUser;
@@ -131,21 +133,31 @@
             function onScanFailure(error) {}
         }
 
+        // دالة الاستعلام مع مؤشر مرئي وجلب البيانات
         async function lookupBarcode(barcode) {
             if (!barcode || barcode.length < 2) return;
+            const nameInput = document.getElementById('itemName');
+            nameInput.value = "جاري البحث في الشيت...";
+            
             try {
-                const response = await fetch(`${WEB_APP_URL}?barcode=${barcode}`);
+                const response = await fetch(`${WEB_APP_URL}?barcode=${barcode.trim()}`);
                 const data = await response.json();
                 if (data.success) {
-                    document.getElementById('itemName').value = data.name;
+                    nameInput.value = data.name;
                     if(data.location) document.getElementById('itemLocation').value = data.location;
                 } else {
-                    // إذا لم يوجد في الشيت، يسمح للموظف بكتابته يدوياً دون أن يعيقه شيء
-                    console.log("الباركود غير موجود بالشيت، يمكن كتابة الاسم يدوياً.");
+                    nameInput.value = "";
+                    alert("الباركود غير موجود في جوجل شيت، يرجى كتابة اسم الصنف يدوياً.");
                 }
             } catch (err) {
                 console.error("خطأ في الاتصال بجوجل شيت:", err);
+                nameInput.value = "";
             }
+        }
+
+        function manualLookup() {
+            const barcode = document.getElementById('itemBarcode').value;
+            lookupBarcode(barcode);
         }
 
         function checkExpiryStatus(expiryDateStr) {
@@ -204,6 +216,7 @@
             });
 
             if (hasUrgentAlert) {
+                document.getElementById('alertBrand']?.style?.display = 'block';
                 document.getElementById('alertBanner').style.display = 'block';
             } else {
                 document.getElementById('alertBanner').style.display = 'none';
