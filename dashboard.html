@@ -39,7 +39,7 @@
                     📷 تشغيل كاميرا الباركود (Barcode / QR)
                 </button>
                 <button type="button" onclick="fetchSheetData()" class="bg-gray-800 text-white px-4 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-black transition">
-                    🔄 تحديث بيانات الأصناف من الشيت
+                    🔄 مزامنة وجلب الأصناف من الشيت
                 </button>
                 <div id="reader" class="w-full max-w-md mt-3 border rounded-lg overflow-hidden shadow-inner"></div>
             </div>
@@ -98,7 +98,13 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7OwbeTX2lx_U9K4Hm1zOt79kXSDMXc3SJnwuV8nm5vn1bI9AjhUOmJoXft0vrMFYt/exec";
+        // رابط الـ Web App للحفظ (POST)
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpAU1aEV4ySpxu2QKD5on-coB8v-zYt2V-m3zhb2kcLH1X19T6Og2YDx_n7Zwbw2q4/exec";
+        
+        // رابط قراءة الشيت مباشرة عبر CSV (استبدل SHEET_ID بمعرف جدولك الحقيقي الموجود في رابط الشيت)
+        // مثال: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit -> SPREADSHEET_ID هو 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms
+        const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE";
+        const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 
         const currentUser = sessionStorage.getItem('currentUser') || 'وليد';
         const currentDept = sessionStorage.getItem('currentDept') || 'منظفات';
@@ -111,26 +117,42 @@
             window.location.href = 'index.html';
         }
 
-        // جلب الأصناف من الشيت وتخزينها محلياً لتفادي مشاكل الاتصال اللاحقة
+        // جلب وقراءة بيانات الشيت كملف CSV لتفادي أخطاء CORS تماماً
         async function fetchSheetData() {
+            if (SPREADSHEET_ID === "YOUR_SPREADSHEET_ID_HERE") {
+                console.log("يرجى وضع معرف الشيت SPREADSHEET_ID في الكود.");
+                return;
+            }
             try {
-                const response = await fetch(WEB_APP_URL);
-                const data = await response.json();
-                if (data.success && data.items) {
-                    localStorage.setItem('sheet_master_items', JSON.stringify(data.items));
-                    alert("تم تحديث وجلب قاعدة بيانات الأصناف من الشيت بنجاح!");
+                const response = await fetch(SHEET_CSV_URL);
+                const csvText = await response.text();
+                const rows = csvText.split('\n');
+                let items = [];
+
+                for (let i = 1; i < rows.length; i++) {
+                    const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                    if (cols.length >= 2 && cols[0]) {
+                        items.push({
+                            barcode: cols[0],
+                            name: cols[1],
+                            location: cols[3] || ''
+                        });
+                    }
                 }
+
+                localStorage.setItem('sheet_master_items', JSON.stringify(items));
+                alert("تم تحديث وجلب الأصناف من الشيت بنجاح!");
             } catch (err) {
-                console.error("خطأ في جلب بيانات الشيت:", err);
-                alert("تعذر جلب البيانات من الشيت، سيتم الاعتماد على الذاكرة المحلية المؤقتة.");
+                console.error("خطأ في جلب CSV الشيت:", err);
+                alert("تعذر جلب الشيت، سيتم الاعتماد على الذاكرة المحلية.");
             }
         }
 
-        // البحث محلياً وبسرعة فائقة عن الباركود وجلب الاسم والمكان
+        // البحث السريع محلياً عن الباركود فور إدخاله أو مسحه
         function lookupBarcodeLocally(barcode) {
             if (!barcode || barcode.trim() === "") return;
             let masterItems = JSON.parse(localStorage.getItem('sheet_master_items') || '[]');
-            const found = masterItems.find(item => String(item.barcode).trim() === String(barcode).trim());
+            const found = masterItems.find(item => String(item.barcode).trim() === String(barcode.trim()));
             
             const nameInput = document.getElementById('itemName');
             const locInput = document.getElementById('itemLocation');
@@ -295,7 +317,7 @@
 
         window.onload = function() {
             loadInventory();
-            fetchSheetData(); // جلب الأصناف عند فتح الصفحة تلقائياً
+            fetchSheetData(); // سحب بيانات الشيت تلقائياً عند الفتح
         };
     </script>
 </body>
