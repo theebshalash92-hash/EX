@@ -1,30 +1,57 @@
-// دالة تشغيل البحث اليدوي عند الضغط على الزر
-function triggerLookup() {
-    const barcodeInput = document.getElementById('itemBarcode');
-    if (!barcodeInput) {
-        alert("حقل الباركود غير موجود!");
-        return;
-    }
-    
-    const barcode = barcodeInput.value.trim();
-    if (!barcode) {
-        alert("يرجى إدخال أو مسح رقم الباركود أولاً!");
-        barcodeInput.focus();
-        return;
-    }
-    
-    lookupBarcodeLocally(barcode);
-}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المخازن والتنبيهات الذكية</title>
+    <!-- Tailwind CSS للتصميم الاحترافي -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة قارئ الباركود (1D & 2D / QR) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- مكتبات تصدير الـ PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
 
-// ربط زر البحث والضغط على مفتاح Enter تلقائياً
-document.addEventListener("DOMContentLoaded", () => {
-    const barcodeInput = document.getElementById('itemBarcode');
-    if (barcodeInput) {
-        barcodeInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                triggerLookup();
-            }
-        });
-    }
-});
+    <!-- شريط التنبيهات العبوي الفوري (أعلى الشاشة للمواد التي تنتهي خلال 10 أيام) -->
+    <div id="alertBanner" class="bg-red-600 text-white text-center py-3 px-4 font-bold text-sm hidden shadow-lg animate-pulse">
+        ⚠️ تنبيه عاجل: توجد مواد في قسمك تقترب من الانتهاء خلال أقل من 10 أيام! يرجى مراجعتها فوراً.
+    </div>
+
+    <div class="container mx-auto p-4 md:p-6 max-w-7xl">
+        <!-- الشريط العلوي ومعلومات المستخدم -->
+        <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-sm md:text-base text-gray-700">
+                حياك الله، <span id="displayUser" class="font-bold text-blue-600">وليد</span> | 
+                القسم الحالي: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded">منظفات</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportPDF()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition">
+                    📄 تصدير تقرير القسم (PDF)
+                </button>
+                <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-red-600 transition">
+                    تسجيل الخروج
+                </button>
+            </div>
+        </header>
+
+        <!-- قسم مسح الباركود وإدخال المادة -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">إضافة مادة جديدة (قارئ باركود متطور 1D + 2D)</h2>
+            
+            <!-- أداة مسح الباركود عبر الكاميرا -->
+            <div class="mb-6 flex flex-wrap gap-3 items-center">
+                <button type="button" onclick="startScanner()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-indigo-700 transition inline-flex items-center gap-2">
+                    📷 تشغيل كاميرا الباركود (Barcode / QR)
+                </button>
+                <div id="reader" class="w-full max-w-md mt-3 border rounded-lg overflow-hidden shadow-inner"></div>
+            </div>
+
+            <!-- نموذج إدخال البيانات -->
+            <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
+                    <div class="flex gap-1">
+                        <input type="text" id="itemBarcode" placeholder="اكتب أو امسح" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcodeLocally(this.value)">
+                        <button type="button" onclick="triggerLookup()" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black whitespace
