@@ -3,28 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة المخازن والتنبيهات الذكية</title>
-    <!-- Tailwind CSS للتصميم الاحترافي -->
+    <title>لوحة تحكم المخزن - نظام الإدارة الذكي</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- مكتبة قارئ الباركود (1D & 2D / QR) -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- مكتبات تصدير الـ PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-100 font-sans min-h-screen">
 
-    <!-- شريط التنبيهات العبوي الفوري (أعلى الشاشة للمواد التي تنتهي خلال 10 أيام) -->
+    <!-- شريط التنبيهات الفوري (المواد التي تنتهي خلال 10 أيام) -->
     <div id="alertBanner" class="bg-red-600 text-white text-center py-3 px-4 font-bold text-sm hidden shadow-lg animate-pulse">
         ⚠️ تنبيه عاجل: توجد مواد في قسمك تقترب من الانتهاء خلال أقل من 10 أيام! يرجى مراجعتها فوراً.
     </div>
 
     <div class="container mx-auto p-4 md:p-6 max-w-7xl">
-        <!-- الشريط العلوي ومعلومات المستخدم -->
+        <!-- الشريط العلوي -->
         <header class="bg-white p-4 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="text-sm md:text-base text-gray-700">
-                حياك الله، <span id="displayUser" class="font-bold text-blue-600">وليد</span> | 
-                القسم الحالي: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded">منظفات</span>
+                حياك الله، <span id="displayUser" class="font-bold text-blue-600"></span> | 
+                القسم: <span id="displayDept" class="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded"></span>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="exportPDF()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition">
@@ -36,25 +33,23 @@
             </div>
         </header>
 
-        <!-- قسم مسح الباركود وإدخال المادة -->
+        <!-- قسم إضافة مادة وقارئ الباركود -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">إضافة مادة جديدة (قارئ باركود متطور 1D + 2D)</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">إضافة مادة جديدة (قارئ باركود 1D + 2D)</h2>
             
-            <!-- أداة مسح الباركود عبر الكاميرا -->
-            <div class="mb-6 flex flex-wrap gap-3 items-center">
+            <div class="mb-6">
                 <button type="button" onclick="startScanner()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-indigo-700 transition inline-flex items-center gap-2">
-                    📷 تشغيل كاميرا الباركود (Barcode / QR)
+                    📷 تشغيل كاميرا الباركود
                 </button>
                 <div id="reader" class="w-full max-w-md mt-3 border rounded-lg overflow-hidden shadow-inner"></div>
             </div>
 
-            <!-- نموذج إدخال البيانات -->
             <form id="itemForm" onsubmit="addItem(event)" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
                     <div class="flex gap-1">
                         <input type="text" id="itemBarcode" placeholder="اكتب أو امسح الباركود" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500">
-                        <button type="button" onclick="triggerLookup()" class="bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-black whitespace-nowrap shadow">🔍 جلب الصنف</button>
+                        <button type="button" onclick="triggerLookup()" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black whitespace-nowrap">🔍 بحث</button>
                     </div>
                 </div>
                 <div>
@@ -81,7 +76,7 @@
             </form>
         </div>
 
-        <!-- جدول مخزون القسم والتنبيهات الحية -->
+        <!-- جدول المخزون والتنبيهات -->
         <div class="bg-white rounded-xl shadow-md overflow-hidden p-6">
             <h2 class="text-lg font-bold text-gray-800 mb-4">مخزون القسم الحالي والتنبيهات الحية</h2>
             <div class="overflow-x-auto">
@@ -106,11 +101,228 @@
         </div>
     </div>
 
-    <!-- كود الجافاسكريبت المحسّن بالكامل -->
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpAU1aEV4ySpxu2QKD5on-coB8v-zYt2V-m3zhb2kcLH1X19T6Og2YDx_n7Zwbw2q4/exec";
 
-        // قاعدة البيانات الكاملة والمستخرجة من ملف الـ Excel الخاص بك (Bracode و name)
+        // قاعدة بيانات الأصناف المستخرجة من ملف الـ Excel الخاص بك (Bracode & name)
         const masterItems = [
-            { barcode: "6254
-                
+            { barcode: "6254000119147", name: "Golden Demi Glace sauce powder 1 kg" },
+            { barcode: "42092698", name: "Langnese Pure Bee Honey 125g" },
+            { barcode: "34000070763", name: "Hersheys CookiesCream Candy Size Chocolates 904g" },
+            { barcode: "34000519224", name: "Twizzlers Twists 180 163g" },
+            { barcode: "41116005824", name: "Juicy DropTaffy Different Flavors Candy 1Piece 67g" },
+            { barcode: "79400470690", name: "Suave Collagen InfusionThickening Conditioner443ml" },
+            { barcode: "91216019805", name: "Haribo Roulette Sour Candy 25g" },
+            { barcode: "863769000281", name: "Koita UHT Lactose Free Low Fat Milk 200 ml" },
+            { barcode: "869712000094", name: "Koita UHT Organic Whole Fat Milk 200 ml" },
+            { barcode: "9800800056", name: "Nutella go Chocolate With Biscuit Fingers  52g" }
+        ];
+
+        const currentUser = sessionStorage.getItem('currentUser') || 'موظف';
+        const currentDept = sessionStorage.getItem('currentDept') || 'منظفات';
+
+        document.getElementById('displayUser').innerText = currentUser;
+        document.getElementById('displayDept').innerText = currentDept;
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        // البحث الفوري عن الباركود
+        function lookupBarcodeLocally(barcode) {
+            if (!barcode) return;
+            const cleanBarcode = String(barcode).trim();
+            const found = masterItems.find(item => String(item.barcode).trim() === cleanBarcode);
+            const nameInput = document.getElementById('itemName');
+            
+            if (found) {
+                nameInput.value = found.name;
+            }
+        }
+
+        function triggerLookup() {
+            const barcodeInput = document.getElementById('itemBarcode');
+            const barcode = barcodeInput.value.trim();
+            if (!barcode) {
+                alert("يرجى إدخال رقم الباركود أولاً!");
+                barcodeInput.focus();
+                return;
+            }
+            lookupBarcodeLocally(barcode);
+        }
+
+        // ربط الأحداث عند الكتابة أو الضغط على Enter
+        document.addEventListener("DOMContentLoaded", () => {
+            const barcodeInput = document.getElementById('itemBarcode');
+            if (barcodeInput) {
+                barcodeInput.addEventListener("input", (e) => {
+                    lookupBarcodeLocally(e.target.value);
+                });
+                barcodeInput.addEventListener("keypress", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        triggerLookup();
+                    }
+                });
+            }
+            loadInventory();
+        });
+
+        // تشغيل كاميرا الباركود
+        function startScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 250 });
+            scanner.render(onScanSuccess, onScanFailure);
+
+            function onScanSuccess(decodedText) {
+                document.getElementById('itemBarcode').value = decodedText;
+                scanner.clear();
+                document.getElementById('reader').innerHTML = "";
+                lookupBarcodeLocally(decodedText);
+            }
+            function onScanFailure(error) {}
+        }
+
+        // فحص الصلاحية والتنبيه (10 أيام)
+        function checkExpiryStatus(expiryDateStr) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const expiryDate = new Date(expiryDateStr);
+            expiryDate.setHours(0,0,0,0);
+            
+            const diffTime = expiryDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return { badge: `<span class="bg-red-200 text-red-900 text-xs px-2.5 py-1 rounded-full font-bold">منتهية الصلاحية (مضى ${Math.abs(diffDays)} يوم)</span>`, isNear: true };
+            } else if (diffDays <= 10) {
+                return { badge: `<span class="bg-red-600 text-white text-xs px-2.5 py-1 rounded-full font-bold animate-pulse">⚠️ تنبيه عاجل: متبقي ${diffDays} أيام فقط!</span>`, isNear: true };
+            } else if (diffDays <= 30) {
+                return { badge: `<span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold">قريب الانتهاء (متبقي ${diffDays} يوم)</span>`, isNear: false };
+            } else {
+                return { badge: `<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">سارية المفعول (متبقي ${diffDays} يوم)</span>`, isNear: false };
+            }
+        }
+
+        // تحميل وعرض المخزون الخاص بالقسم
+        function loadInventory() {
+            const tableBody = document.getElementById('itemTableBody');
+            let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+            
+            tableBody.innerHTML = '';
+            const deptItems = localData.filter(item => item.department === currentDept);
+
+            let hasUrgentAlert = false;
+
+            if (deptItems.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-500">لا توجد مواد مسجلة في قسم (${currentDept}) حتى الآن</td></tr>`;
+                document.getElementById('alertBanner').style.display = 'none';
+                return;
+            }
+
+            deptItems.forEach((item, index) => {
+                const statusObj = checkExpiryStatus(item.expiryDate);
+                if (statusObj.isNear) hasUrgentAlert = true;
+
+                tableBody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-3 text-gray-500">${index + 1}</td>
+                        <td class="p-3 font-mono text-xs font-bold text-gray-700">${item.barcode}</td>
+                        <td class="p-3 font-bold text-blue-900">${item.name}</td>
+                        <td class="p-3 text-gray-700">${item.location}</td>
+                        <td class="p-3 font-bold">${item.quantity}</td>
+                        <td class="p-3 font-mono text-gray-600">${item.expiryDate}</td>
+                        <td class="p-3">${statusObj.badge}</td>
+                        <td class="p-3">
+                            <button onclick="deleteItem('${item.barcode}', '${item.expiryDate}')" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded transition">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (hasUrgentAlert) {
+                document.getElementById('alertBanner').style.display = 'block';
+            } else {
+                document.getElementById('alertBanner').style.display = 'none';
+            }
+        }
+
+        // حفظ المادة محلياً وسحابياً
+        async function addItem(e) {
+            e.preventDefault();
+            const barcode = document.getElementById('itemBarcode').value.trim();
+            const name = document.getElementById('itemName').value.trim();
+            const location = document.getElementById('itemLocation').value.trim();
+            const quantity = parseInt(document.getElementById('itemQuantity').value);
+            const expiryDate = document.getElementById('itemExpiryDate').value;
+
+            const submitBtn = document.getElementById('saveBtn');
+            submitBtn.innerText = "جاري الحفظ في الشيت...";
+            submitBtn.disabled = true;
+
+            const newItem = { barcode, name, department: currentDept, location, quantity, expiryDate };
+
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newItem)
+                });
+
+                let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+                localData.push(newItem);
+                localStorage.setItem('supermarket_inventory', JSON.stringify(localData));
+
+                alert("تم حفظ المادة بنجاح وإضافتها لقائمة مخزون القسم والتنبيهات!");
+                document.getElementById('itemForm').reset();
+                loadInventory();
+            } catch (error) {
+                console.error("خطأ بالحفظ:", error);
+                alert("حدث خطأ أثناء الحفظ بالسحابة!");
+            } finally {
+                submitBtn.innerText = "حفظ المادة وإضافتها لمخزون القسم";
+                submitBtn.disabled = false;
+            }
+        }
+
+        function deleteItem(barcode, expiryDate) {
+            if (confirm("هل أنت متأكد من حذف هذه المادة من القائمة؟")) {
+                let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+                localData = localData.filter(item => !(item.barcode === barcode && item.expiryDate === expiryDate && item.department === currentDept));
+                localStorage.setItem('supermarket_inventory', JSON.stringify(localData));
+                loadInventory();
+            }
+        }
+
+        // تصدير تقرير القسم PDF
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text(`Department Inventory Report: ${currentDept}`, 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Employee: ${currentUser} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+            
+            let localData = JSON.parse(localStorage.getItem('supermarket_inventory') || '[]');
+            let deptItems = localData.filter(item => item.department === currentDept);
+            
+            const tableData = deptItems.map((item, i) => [
+                i + 1, item.barcode, item.name, item.location, item.quantity, item.expiryDate
+            ]);
+
+            doc.autoTable({
+                startY: 33,
+                head: [['#', 'Barcode', 'Item Name', 'Location', 'Quantity', 'Expiry Date']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [41, 128, 185] }
+            });
+
+            doc.save(`${currentDept}-Inventory-Report.pdf`);
+        }
+    </script>
+</body>
+</html>
