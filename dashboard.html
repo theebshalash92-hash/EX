@@ -53,5 +53,64 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">رقم الباركود:</label>
                     <div class="flex gap-1">
-                        <input type="text" id="itemBarcode" placeholder="اكتب أو امسح" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500" oninput="lookupBarcodeLocally(this.value)">
-                        <button type="button" onclick="triggerLookup()" class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-black whitespace
+                        <input type="text" id="itemBarcode" placeholder="اكتب أو امسح الباركود" required class="border p-2.5 rounded-lg w-full text-sm bg-gray-50 font-mono focus:ring-2 focus:ring-blue-500">
+                        <button type="button" onclick="triggerLookup()" class="bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-black whitespace-nowrap shadow">🔍 جلب الصنف</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم الصنف:</label>
+                    <input type="text" id="itemName" placeholder="يظهر تلقائياً أو اكتبه" required class="border p-2.5 rounded-lg w-full text-sm bg-white font-bold text-blue-900 focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">مكان التخزين:</label>
+                    <input type="text" id="itemLocation" placeholder="مثال: رف 3 - الثلاجة" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">الكمية:</label>
+                    <input type="number" id="itemQuantity" placeholder="الكمية" min="1" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء:</label>
+                    <input type="date" id="itemExpiryDate" required class="border p-2.5 rounded-lg w-full text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-2 lg:col-span-5 flex justify-end mt-2">
+                    <button type="submit" id="saveBtn" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-bold text-sm shadow-md transition w-full md:w-auto">
+                        حفظ المادة وإضافتها لمخزون القسم
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- جدول مخزون القسم والتنبيهات الحية -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">مخزون القسم الحالي والتنبيهات الحية</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                        <tr>
+                            <th class="p-3">#</th>
+                            <th class="p-3">الباركود</th>
+                            <th class="p-3">اسم الصنف</th>
+                            <th class="p-3">مكان التخزين</th>
+                            <th class="p-3">الكمية</th>
+                            <th class="p-3">تاريخ الانتهاء</th>
+                            <th class="p-3">حالة الصلاحية والتنبيه الذكي</th>
+                            <th class="p-3">الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemTableBody" class="divide-y divide-gray-200 text-sm">
+                        <tr><td colspan="8" class="text-center p-6 text-gray-500">جاري تحميل بيانات المخزون...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- كود الجافاسكريبت المحسّن بالكامل -->
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwpAU1aEV4ySpxu2QKD5on-coB8v-zYt2V-m3zhb2kcLH1X19T6Og2YDx_n7Zwbw2q4/exec";
+
+        // قاعدة البيانات الكاملة والمستخرجة من ملف الـ Excel الخاص بك (Bracode و name)
+        const masterItems = [
+            { barcode: "6254
+                
